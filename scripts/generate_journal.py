@@ -162,13 +162,13 @@ To cite the ESCO Taxonomy v1.2.1 or this specific PEFT implementation pipeline i
 }
 
 @software{gemma4_esco_finetune_2026,
-  author       = {ESCO-Gemma4 Engineering Team},
+  author       = {Fard, Mohammadreza A.},
   title        = {Parameter-Efficient Fine-Tuning (PEFT) and Telemetry Pipeline for Gemma-4 on ESCO Skill Inventories},
   month        = may,
   year         = {2026},
   publisher    = {GitHub Repository},
   version      = {1.0.0},
-  url          = {https://github.com/esco-gemma4/pipeline}
+  url          = {https://github.com/mazafard/esco-gemma4-pipeline}
 }
 ```
 """
