@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project-specific large datasets
+ESCO dataset - v1.2.1 - classification - en - csv/
+
+# Model outputs, checkpoints, and weights (large binaries)
+outputs/
+
+# Telemetry logs and training metrics
+logs/
+
+# Local environment secret variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+artifacts/
