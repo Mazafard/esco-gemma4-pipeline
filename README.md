@@ -1,5 +1,7 @@
 # Gemma 4 ESCO Fine-Tuning & Measurement Pipeline
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mazafard/esco-gemma4-pipeline/blob/main/esco_gemma4_pipeline.ipynb)
+
 An end-to-end, parameters-efficient fine-tuning (PEFT) and structured telemetry pipeline designed to fine-tune **Gemma 4** architectures to semantic classification tasks. Specifically, it maps complex professional skills and work experiences directly to discrete **ESCO (European Skills, Competences, Qualifications and Occupations) v1.2.1** occupational titles and **ISCO-08** taxonomy codes.
 
 ---
