@@ -33,7 +33,7 @@ def parse_args():
         "--stage",
         type=str,
         default="all",
-        choices=["all", "prep", "train", "merge", "journal"],
+        choices=["all", "prep", "download", "train", "merge", "journal"],
         help="Select a specific pipeline phase to run, or 'all' for the full end-to-end execution sequence."
     )
     parser.add_argument(
@@ -106,6 +106,15 @@ def execute_pipeline(args) -> None:
         success = run_subprocess_script("data_preparation.py")
         if not success:
             logger.error("[-] Pipeline halted due to Phase 1 failure.")
+            sys.exit(1)
+
+    # Phase 1b: Model Pre-Caching
+    run_download = args.stage in ["all", "download"]
+    if run_download:
+        logger.info("[Phase 1b] Pre-Caching Base Model Weights...")
+        success = run_subprocess_script("download_model.py", ["--base_model", args.base_model])
+        if not success:
+            logger.error("[-] Pipeline halted due to Phase 1b failure.")
             sys.exit(1)
 
     # Phase 2: Unsloth QLoRA Fine-tuning
