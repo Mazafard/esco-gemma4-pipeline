@@ -168,7 +168,7 @@ class TelemetryCallback(TrainerCallback):
                         f"<start_of_turn>user\nInstruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\n"
                         f"Input: {skills}<end_of_turn>\n<start_of_turn>model\n"
                     )
-                    inputs = self.tokenizer([prompt], return_tensors="pt").to("cuda")
+                    inputs = self.tokenizer(text=[prompt], return_tensors="pt").to("cuda")
                     outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
                     generated_text = self.tokenizer.batch_decode(outputs)[0]
                     model_output = generated_text.split("<start_of_turn>model\n")[-1].replace("<end_of_turn>", "").strip()
