@@ -56,8 +56,8 @@ def parse_args():
     parser.add_argument(
         "--base_model",
         type=str,
-        default="google/gemma-4-9b",
-        help="Base model reference on HF Hub (defaults to 'google/gemma-4-9b')."
+        default="unsloth/gemma-4-E4B-it",
+        help="Base model reference on HF Hub (defaults to 'unsloth/gemma-4-E4B-it')."
     )
     return parser.parse_args()
 
