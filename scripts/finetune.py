@@ -149,7 +149,10 @@ class TelemetryCallback(TrainerCallback):
 
         model.eval()
         with torch.no_grad():
-            for sample in eval_samples:
+            for idx, sample in enumerate(eval_samples):
+                if (idx + 1) % 25 == 0:
+                    logger.info(f"  -> Benchmark progress: {idx + 1}/{total} samples processed...")
+                
                 skills = sample.get("input", "")
                 gt_output = sample.get("output", "")
                 
