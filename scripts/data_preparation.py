@@ -166,6 +166,10 @@ class ESCODataPreprocessor:
 
 def main():
     try:
+        if os.path.exists(OUTPUT_JSON):
+            logger.info(f"[+] Found existing parsed dataset at: {OUTPUT_JSON}. Skipping CSV ingestion.")
+            return
+
         preprocessor = ESCODataPreprocessor(CSV_DIR, OUTPUT_JSON)
         preprocessor.validate_inputs()
         dataset = preprocessor.parse_data()
