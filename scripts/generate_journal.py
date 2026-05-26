@@ -97,10 +97,10 @@ def generate_markdown_journal(metrics: list, dataset_size: int) -> None:
 ## 1. Abstract & Methodology
 
 ### 1.1 Abstract
-This experimental paper documents the parameter-efficient fine-tuning (PEFT) of the **Gemma-4-9B** base architecture on a unified, parsed dataset derived from the European Skills, Competences, Qualifications and Occupations (ESCO v1.2.1) taxonomy. Standard matching tasks represent high-dimensional semantic routing difficulties due to overlapping cross-disciplinary skill profiles. In this work, we present an end-to-end pipeline using **4-bit QLoRA** quantization, demonstrating rapid convergence and high-fidelity precision in mapping composite professional skill inventories directly to discrete ESCO titles and 4-digit ISCO-08 occupational groupings.
+This experimental paper documents the parameter-efficient fine-tuning (PEFT) of the **Gemma-4-E4B** base architecture on a unified, parsed dataset derived from the European Skills, Competences, Qualifications and Occupations (ESCO v1.2.1) taxonomy. Standard matching tasks represent high-dimensional semantic routing difficulties due to overlapping cross-disciplinary skill profiles. In this work, we present an end-to-end pipeline using **4-bit QLoRA** quantization, demonstrating rapid convergence and high-fidelity precision in mapping composite professional skill inventories directly to discrete ESCO titles and 4-digit ISCO-08 occupational groupings.
 
 ### 1.2 Hyperparameter Blueprint & Dataset Footprint
-- **Base Architecture:** `google/gemma-4-9b`
+- **Base Architecture:** `unsloth/gemma-4-E4B-it`
 - **Training Mode:** 4-bit Quantization (Double Quantization, NF4)
 - **Adapter Configuration:** Parameter-Efficient Fine-Tuning (LoRA)
   - Rank ($r$): 16

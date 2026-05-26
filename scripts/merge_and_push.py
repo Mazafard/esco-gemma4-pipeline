@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument(
         "--base_model",
         type=str,
-        default="google/gemma-4-9b",
+        default="unsloth/gemma-4-E4B-it",
         help="Base model path or Hugging Face ID."
     )
     return parser.parse_args()
@@ -95,8 +95,8 @@ def merge_lora_weights(base_model_name: str) -> None:
     else:
         # Standard CPU PEFT weight merging fallback
         logger.info("[!] CPU Fallback: Merging PEFT weights via native Hugging Face PEFT API.")
-        # Load a representative tiny mock for dry-runs if model is not google/gemma-4-9b
-        is_mock = "tiny-gpt2" in base_model_name or "google/gemma-4-9b" == base_model_name
+        # Load a representative tiny mock for dry-runs if model is not unsloth/gemma-4-E4B-it
+        is_mock = "tiny-gpt2" in base_model_name or "unsloth/gemma-4-E4B-it" == base_model_name
         actual_base = "sshleifer/tiny-gpt2" if is_mock else base_model_name
         
         logger.info(f"Loading CPU base model: {actual_base}")

@@ -249,7 +249,7 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
     if CUDA_AVAILABLE:
         # standard FastLanguageModel loading
         model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name="google/gemma-4-9b",
+            model_name="unsloth/gemma-4-E4B-it",
             max_seq_length=2048,
             dtype=None,
             load_in_4bit=True
