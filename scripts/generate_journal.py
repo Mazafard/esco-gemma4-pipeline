@@ -10,6 +10,7 @@ import os
 import json
 import logging
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # Setup detailed logging
 logging.basicConfig(
@@ -129,7 +130,10 @@ The model's fine-tuning progression was monitored using a step-by-step telemetry
 - **Peak Precision@1 Score:** {max_p1:.2f}
 - **Peak F1-Score (ESCO Alignment):** {max_f1:.2f}
 
-### 2.2 Granular Step Telemetry Record
+### 2.2 Visual Learning Progression
+![Training Loss vs Precision Benchmark](training_metrics_plot.png)
+
+### 2.3 Granular Step Telemetry Record
 The following table summarizes the key empirical indicators programmatically compiled from the training metrics database:
 
 | Step | Epoch | Training Loss | Validation Loss | Peak VRAM (GB) | Speed (Tokens/s) | Precision@1 | Recall@3 | F1-Score |
@@ -178,10 +182,49 @@ To cite the ESCO Taxonomy v1.2.1 or this specific PEFT implementation pipeline i
     logger.info(f"[+] Automated experimental journal generated at: {JOURNAL_PATH}")
 
 
+def generate_metrics_plot(metrics: list) -> None:
+    """Generates a visual learning curve for loss and precision over steps."""
+    if not metrics:
+        return
+
+    steps = [m["step"] for m in metrics]
+    train_loss = [m["training_loss"] for m in metrics]
+    val_loss = [m["validation_loss"] for m in metrics]
+    precision = [m["precision_at_1"] for m in metrics]
+
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    color = 'tab:red'
+    ax1.set_xlabel('Training Steps', fontsize=12)
+    ax1.set_ylabel('Loss (Cross Entropy)', color=color, fontsize=12)
+    ax1.plot(steps, train_loss, color=color, linestyle='--', marker='o', label='Training Loss')
+    ax1.plot(steps, val_loss, color='darkred', linestyle='-', marker='s', label='Validation Loss')
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.legend(loc='upper left')
+
+    ax2 = ax1.twinx()  
+    color = 'tab:blue'
+    ax2.set_ylabel('Precision@1 Benchmark', color=color, fontsize=12)
+    ax2.plot(steps, precision, color=color, linestyle='-', marker='^', label='Precision@1')
+    ax2.tick_params(axis='y', labelcolor=color)
+    ax2.set_ylim(0, 1.05)
+    ax2.legend(loc='upper right')
+
+    plt.title('Gemma 4 ESCO Fine-Tuning: Loss vs Precision Convergence', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    plot_path = os.path.join(BASE_DIR, "artifacts", "training_metrics_plot.png")
+    fig.tight_layout()
+    plt.savefig(plot_path, dpi=300)
+    plt.close()
+    logger.info(f"[+] Visual learning curve saved at: {plot_path}")
+
+
 def main():
     try:
         metrics = load_telemetry_data()
         dataset_size = load_dataset_size()
+        generate_metrics_plot(metrics)
         generate_markdown_journal(metrics, dataset_size)
     except Exception as e:
         logger.error(f"[-] Journal generation failed: {str(e)}", exc_info=True)

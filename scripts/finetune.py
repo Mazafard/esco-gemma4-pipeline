@@ -150,8 +150,7 @@ class TelemetryCallback(TrainerCallback):
         model.eval()
         with torch.no_grad():
             for idx, sample in enumerate(eval_samples):
-                if (idx + 1) % 25 == 0:
-                    logger.info(f"  -> Benchmark progress: {idx + 1}/{total} samples processed...")
+
                 
                 skills = sample.get("input", "")
                 gt_output = sample.get("output", "")
@@ -200,6 +199,12 @@ class TelemetryCallback(TrainerCallback):
                 # Compute Recall@3 (simulate matching top ISCO-08 structures or exact group code)
                 if pred_code == gt_code or gt_code[:3] in pred_code:
                     correct_r3 += 1
+
+                if (idx + 1) % 25 == 0:
+                    logger.info(f"  -> Benchmark progress: {idx + 1}/{total} samples processed...")
+                    logger.info(f"     [GT]   Title: '{gt_title}' | Code: '{gt_code}'")
+                    logger.info(f"     [PRED] Title: '{pred_title}' | Code: '{pred_code}'")
+                    logger.info(f"     [RUNNING METRICS] Precision@1: {(correct_p1 / (idx + 1)):.2%} | Recall: {(correct_r3 / (idx + 1)):.2%}")
 
         model.train()
 
