@@ -6,11 +6,13 @@ telemetry hooks to log Peak VRAM, Speed, Loss, and Precision/Recall benchmarks.
 """
 
 import os
+os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 import json
 import time
 import logging
 import torch
 import random
+import gc
 from typing import Dict, List, Any, Tuple
 from datasets import Dataset
 
@@ -114,7 +116,7 @@ class TelemetryCallback(TrainerCallback):
 
         # 4. Trigger Deterministic Evaluation Benchmarks every log/eval step
         # To avoid training slowdown, we benchmark against 100 test samples
-        if "loss" in logs or step % 10 == 0:
+        if step > 0 and step % 10 == 0:
             logger.info(f"Triggering deterministic ESCO Precision/Recall benchmark at Step {step}...")
             precision, recall, f1 = self.run_esco_evaluation(kwargs.get("model"))
             step_metrics["precision_at_1"] = round(precision, 4)
@@ -147,6 +149,10 @@ class TelemetryCallback(TrainerCallback):
         correct_r3 = 0
         total = len(eval_samples)
 
+        if CUDA_AVAILABLE:
+            gc.collect()
+            torch.cuda.empty_cache()
+
         model.eval()
         with torch.no_grad():
             for idx, sample in enumerate(eval_samples):
@@ -171,8 +177,14 @@ class TelemetryCallback(TrainerCallback):
                         f"Input: {skills}<end_of_turn>\n<start_of_turn>model\n"
                     )
                     inputs = self.tokenizer(text=[prompt], return_tensors="pt").to("cuda")
-                    outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
-                    generated_text = self.tokenizer.batch_decode(outputs)[0]
+                    outputs = model.generate(
+                        **inputs,
+                        max_new_tokens=64,
+                        use_cache=True,
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
+                    generated_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)[0]
                     model_output = generated_text.split("<start_of_turn>model\n")[-1].replace("<end_of_turn>", "").strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
@@ -207,6 +219,10 @@ class TelemetryCallback(TrainerCallback):
                     logger.info(f"     [RUNNING METRICS] Precision@1: {(correct_p1 / (idx + 1)):.2%} | Recall: {(correct_r3 / (idx + 1)):.2%}")
 
         model.train()
+
+        if CUDA_AVAILABLE:
+            gc.collect()
+            torch.cuda.empty_cache()
 
         precision = correct_p1 / total if total > 0 else 0.0
         recall = correct_r3 / total if total > 0 else 0.0
