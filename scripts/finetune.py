@@ -195,20 +195,25 @@ class TelemetryCallback(TrainerCallback):
                         pad_token_id=self.tokenizer.pad_token_id,
                         eos_token_id=self.tokenizer.eos_token_id
                     )
-                    generated_tokens = outputs[0]
-                    input_token_len = inputs.input_ids.shape[1]
-                    
-                    # Decode only the newly generated slice safely
-                    response_tokens = generated_tokens[input_token_len:]
-                    model_output = self.tokenizer.decode(response_tokens, skip_special_tokens=True).strip()
+                    # FORCE FIX: Decode the entire token output first to bypass array slicing bugs
+                    full_predicted_text = self.tokenizer.decode(outputs[0], skip_special_tokens=False)
 
-                    # Fallback in case of template token overhead shifting indexes
-                    if not model_output:
-                        full_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-                        if "assistant" in full_text.lower():
-                            model_output = full_text.lower().split("assistant")[-1].strip()
-                        elif "model" in full_text.lower():
-                            model_output = full_text.lower().split("model")[-1].strip()
+                    # Extract the content after the assistant tag manually
+                    model_output = ""
+                    if "<|im_start|>assistant" in full_predicted_text:
+                        model_output = full_predicted_text.split("<|im_start|>assistant")[-1].replace("<|im_end|>", "").strip()
+                    elif "assistant" in full_predicted_text.lower():
+                        model_output = full_predicted_text.lower().split("assistant")[-1].strip()
+                    elif "<start_of_turn>model" in full_predicted_text:
+                        model_output = full_predicted_text.split("<start_of_turn>model")[-1].replace("<end_of_turn>", "").strip()
+                    elif "model" in full_predicted_text.lower():
+                        model_output = full_predicted_text.lower().split("model")[-1].strip()
+                    else:
+                        # Ultimate fallback if no tags are matched
+                        model_output = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
+
+                    # Clean up any remaining formatting artifacts
+                    model_output = model_output.replace("Thinking Process:", "").strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
                     # Over epochs, mock generation improves to demonstrate pipeline flow correctly
