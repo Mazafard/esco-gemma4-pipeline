@@ -280,13 +280,23 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
     logger.info("Initializing Model & Tokenizer loading...")
 
     if CUDA_AVAILABLE:
-        # standard FastLanguageModel loading
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name="unsloth/gemma-4-E4B-it",
-            max_seq_length=2048,
-            dtype=None,
-            load_in_4bit=True
-        )
+        try:
+            model, tokenizer = FastLanguageModel.from_pretrained(
+                model_name="unsloth/gemma-4-E4B-it",
+                max_seq_length=2048,
+                dtype=None,
+                load_in_4bit=True,
+                local_files_only=True
+            )
+            logger.info("[+] Loaded model directly from local cache!")
+        except Exception:
+            model, tokenizer = FastLanguageModel.from_pretrained(
+                model_name="unsloth/gemma-4-E4B-it",
+                max_seq_length=2048,
+                dtype=None,
+                load_in_4bit=True,
+                local_files_only=False
+            )
 
         # LoRA Adapter Configuration
         logger.info("Configuring LoRA adapters...")

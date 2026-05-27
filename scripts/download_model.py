@@ -41,14 +41,24 @@ def main():
         from unsloth import FastLanguageModel
         
         logger.info(f"--> Initiating pre-caching for model: {args.base_model} in 4-bit...")
-        # Instantiating the model will trigger Unsloth to resolve the true repo (e.g. unsloth/gemma-4-E4B-it-unsloth-bnb-4bit)
-        # and download it using the huggingface_hub API under the hood into the exact cache format it expects.
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name=args.base_model,
-            max_seq_length=2048,
-            dtype=None,
-            load_in_4bit=True,
-        )
+        try:
+            model, tokenizer = FastLanguageModel.from_pretrained(
+                model_name=args.base_model,
+                max_seq_length=2048,
+                dtype=None,
+                load_in_4bit=True,
+                local_files_only=True,
+            )
+            logger.info("[+] Loaded model directly from local cache!")
+        except Exception:
+            logger.info("--> Cache miss. Downloading model from Hugging Face...")
+            model, tokenizer = FastLanguageModel.from_pretrained(
+                model_name=args.base_model,
+                max_seq_length=2048,
+                dtype=None,
+                load_in_4bit=True,
+                local_files_only=False,
+            )
         logger.info("[+] Successfully downloaded and cached model weights!")
     except Exception as e:
         logger.error(f"[-] Failed to download model weights: {e}")
