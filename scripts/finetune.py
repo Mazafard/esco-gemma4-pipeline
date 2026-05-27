@@ -321,6 +321,9 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
     )
 
     logger.info("Setting up SFTTrainer and Training Arguments...")
+    
+    has_bf16 = torch.cuda.is_bf16_supported() if CUDA_AVAILABLE else False
+    
     training_args = SFTConfig(
         output_dir="outputs",
         per_device_train_batch_size=1,
@@ -331,8 +334,8 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
         optim="adamw_8bit" if CUDA_AVAILABLE else "adamw_torch",
         weight_decay=0.01,
         logging_steps=1,
-        fp16=CUDA_AVAILABLE,
-        bf16=False,
+        fp16=not has_bf16 if CUDA_AVAILABLE else False,
+        bf16=has_bf16 if CUDA_AVAILABLE else False,
         seed=3407,
         remove_unused_columns=False,
         dataset_text_field="text",
