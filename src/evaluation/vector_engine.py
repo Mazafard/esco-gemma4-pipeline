@@ -95,8 +95,15 @@ class EscoVectorEvaluator:
                 input_embed = last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
                 
                 input_embed = torch.nn.functional.normalize(input_embed, p=2, dim=1)
-                cos_sim = torch.nn.functional.cosine_similarity(input_embed, self.target_embeddings)
                 
+                # Fix: Ensure input embedding is correctly shaped as a 2D row vector [1, hidden_dim]
+                if input_embed.dim() == 1:
+                    input_embed = input_embed.unsqueeze(0)
+                    
+                # Force row-wise evaluation against the pre-computed target matrix [3039, hidden_dim]
+                cos_sim = torch.nn.functional.cosine_similarity(input_embed, self.target_embeddings, dim=1)
+                
+                # Safely extract the absolute highest matching index
                 best_idx = torch.argmax(cos_sim).item()
                 pred_title = self.target_titles[best_idx]
                 pred_code = self.target_codes[best_idx]
