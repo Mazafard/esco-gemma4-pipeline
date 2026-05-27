@@ -46,6 +46,7 @@ def generate_model_card(folder_path: str, repo_id: str) -> None:
 language:
 - en
 license: apache-2.0
+pipeline_tag: text-generation
 tags:
 - unsloth
 - gemma-4
