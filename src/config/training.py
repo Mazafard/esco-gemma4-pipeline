@@ -23,5 +23,5 @@ def get_training_args() -> SFTConfig:
         dataset_text_field="text",
         max_length=2048,
         dataset_num_proc=1,
-        packing=True,
+        packing=False,
     )
