@@ -64,23 +64,21 @@ class PipelineSmokeTests(unittest.TestCase):
         mock_output.hidden_states = hidden_states
         mock_model.return_value = mock_output
         
-        # Force the evaluator to run in simulated CUDA mode to trigger the vector math block
-        with patch("src.evaluation.vector_engine.is_cuda_available", return_value=True):
-            # 1. Test embedding precomputation matrix creation
-            evaluator._compute_target_embeddings(mock_model)
-            
-            # Should cache 2 embeddings (since we mocked 2 target titles)
-            self.assertIsNotNone(evaluator.target_embeddings)
-            self.assertEqual(evaluator.target_embeddings.shape, (2, 128))
-            self.assertTrue(evaluator.target_embeddings.is_contiguous(), "Target matrix is not strictly contiguous!")
-            
-            # 2. Test execution of the broadcasting loop
-            precision, recall, f1 = evaluator.run_evaluation(mock_model)
-            
-            # Validate output bounds
-            self.assertGreaterEqual(precision, 0.0)
-            self.assertGreaterEqual(recall, 0.0)
-            self.assertGreaterEqual(f1, 0.0)
+        # 1. Test embedding precomputation matrix creation
+        evaluator._compute_target_embeddings(mock_model)
+        
+        # Should cache 2 embeddings (since we mocked 2 target titles)
+        self.assertIsNotNone(evaluator.target_embeddings)
+        self.assertEqual(evaluator.target_embeddings.shape, (2, 128))
+        self.assertTrue(evaluator.target_embeddings.is_contiguous(), "Target matrix is not strictly contiguous!")
+        
+        # 2. Test execution of the broadcasting loop
+        precision, recall, f1 = evaluator.run_evaluation(mock_model)
+        
+        # Validate output bounds
+        self.assertGreaterEqual(precision, 0.0)
+        self.assertGreaterEqual(recall, 0.0)
+        self.assertGreaterEqual(f1, 0.0)
 
 if __name__ == "__main__":
     unittest.main()

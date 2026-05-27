@@ -1,11 +1,12 @@
 import logging
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from src.config.hardware import is_cuda_available
+from src.config.hardware import is_cuda_available, get_device
 
 logger = logging.getLogger(__name__)
 
 def load_model_and_tokenizer():
     cuda_av = is_cuda_available()
+    device = get_device()
     
     if cuda_av:
         try:
@@ -40,11 +41,11 @@ def load_model_and_tokenizer():
             random_state=3407
         )
     else:
-        logger.info("[!] CPU Fallback: Loading tiny GPT-2 model as a representative gemma mock.")
+        logger.info(f"[!] CPU/MPS Fallback: Loading tiny GPT-2 model as a representative gemma mock on {device}.")
         model_name = "sshleifer/tiny-gpt2"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
 
         logger.info("Configuring LoRA adapters for CPU Fallback model...")
         from peft import LoraConfig, get_peft_model

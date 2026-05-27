@@ -3,7 +3,7 @@ import torch
 import random
 import logging
 from typing import List, Dict, Any, Tuple
-from src.config.hardware import is_cuda_available
+from src.config.hardware import is_cuda_available, get_device
 from src.data.ingestion import extract_unique_targets
 
 logger = logging.getLogger(__name__)
@@ -17,8 +17,7 @@ class EscoVectorEvaluator:
         self.target_titles = None
         
     def _compute_target_embeddings(self, model: Any):
-        cuda_av = is_cuda_available()
-        if not cuda_av or self.target_embeddings is not None:
+        if self.target_embeddings is not None:
             return
             
         logger.info("Pre-computing ESCO target embeddings (EOS token approach) for all unique occupations...")
@@ -30,7 +29,7 @@ class EscoVectorEvaluator:
         model.eval()
         with torch.inference_mode():
             for title in titles:
-                inputs = self.tokenizer(text=[title], return_tensors="pt", add_special_tokens=True).to("cuda")
+                inputs = self.tokenizer(text=[title], return_tensors="pt", add_special_tokens=True).to(get_device())
                 outputs = model(**inputs, output_hidden_states=True)
                 
                 last_hidden_state = outputs.hidden_states[-1]
@@ -47,7 +46,6 @@ class EscoVectorEvaluator:
         logger.info(f"Cached {len(self.target_codes)} ESCO target embeddings.")
 
     def run_evaluation(self, model: Any) -> Tuple[float, float, float]:
-        cuda_av = is_cuda_available()
         if not self.eval_records or model is None:
             return 0.0, 0.0, 0.0
 
@@ -56,7 +54,7 @@ class EscoVectorEvaluator:
         correct_r3 = 0
         total = len(eval_samples)
 
-        if cuda_av:
+        if is_cuda_available():
             gc.collect()
             torch.cuda.empty_cache()
             if self.target_embeddings is None:
@@ -76,36 +74,32 @@ class EscoVectorEvaluator:
                     if "ISCO-08 Code:" in line:
                         gt_code = line.split("ISCO-08 Code:")[-1].strip()
 
-                if cuda_av:
-                    messages = [
-                        {"role": "user", "content": f"Instruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\nInput: {skills}"}
-                    ]
-                    prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-                    inputs = self.tokenizer(text=[prompt], return_tensors="pt").to("cuda")
-                    
-                    outputs = model(**inputs, output_hidden_states=True)
-                    last_hidden_state = outputs.hidden_states[-1]
-                    
-                    attention_mask = inputs.attention_mask
-                    sequence_lengths = attention_mask.sum(dim=1) - 1
-                    batch_size = last_hidden_state.shape[0]
-                    input_embed = last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
-                    
-                    input_embed = torch.nn.functional.normalize(input_embed, p=2, dim=1)
-                    cos_sim = torch.nn.functional.cosine_similarity(input_embed, self.target_embeddings)
-                    
-                    best_idx = torch.argmax(cos_sim).item()
-                    pred_title = self.target_titles[best_idx]
-                    pred_code = self.target_codes[best_idx]
-                    
+                messages = [
+                    {"role": "user", "content": f"Instruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\nInput: {skills}"}
+                ]
+                
+                # Check if tiny-gpt2 is being used as a mock (it doesn't have a chat template)
+                if not hasattr(self.tokenizer, 'chat_template') or self.tokenizer.chat_template is None:
+                    prompt = f"Instruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\nInput: {skills}"
                 else:
-                    mock_success = random.random() < 0.35
-                    if mock_success:
-                        pred_title = gt_title
-                        pred_code = gt_code
-                    else:
-                        pred_title = "general manager"
-                        pred_code = "1120"
+                    prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                    
+                inputs = self.tokenizer(text=[prompt], return_tensors="pt").to(get_device())
+                
+                outputs = model(**inputs, output_hidden_states=True)
+                last_hidden_state = outputs.hidden_states[-1]
+                
+                attention_mask = inputs.attention_mask
+                sequence_lengths = attention_mask.sum(dim=1) - 1
+                batch_size = last_hidden_state.shape[0]
+                input_embed = last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
+                
+                input_embed = torch.nn.functional.normalize(input_embed, p=2, dim=1)
+                cos_sim = torch.nn.functional.cosine_similarity(input_embed, self.target_embeddings)
+                
+                best_idx = torch.argmax(cos_sim).item()
+                pred_title = self.target_titles[best_idx]
+                pred_code = self.target_codes[best_idx]
 
                 if pred_title == gt_title:
                     correct_p1 += 1
@@ -120,7 +114,7 @@ class EscoVectorEvaluator:
                     logger.info(f"     [RUNNING METRICS] Precision@1: {(correct_p1 / (idx + 1)):.2%} | Recall: {(correct_r3 / (idx + 1)):.2%}")
 
         model.train()
-        if cuda_av:
+        if is_cuda_available():
             gc.collect()
             torch.cuda.empty_cache()
 
