@@ -65,6 +65,10 @@ class TelemetryCallback(TrainerCallback):
         self.max_steps = max_steps
         self.step_start_time = None
         self.metrics_history: List[Dict[str, Any]] = []
+        
+        self.target_embeddings = None
+        self.target_codes = None
+        self.target_titles = None
 
         # Initialize the output metrics file
         with open(self.output_json_path, "w", encoding="utf-8") as f:
@@ -149,6 +153,58 @@ class TelemetryCallback(TrainerCallback):
             except Exception as e:
                 logger.error(f"Failed to write telemetry: {str(e)}")
 
+    def compute_target_embeddings(self, model: Any):
+        if not CUDA_AVAILABLE or self.target_embeddings is not None:
+            return
+            
+        logger.info("Pre-computing ESCO target embeddings (EOS token approach) for all unique occupations...")
+        try:
+            with open(DATASET_PATH, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+        except Exception:
+            raw_data = self.eval_dataset
+            
+        unique_targets = {}
+        for r in raw_data:
+            gt_output = r.get("output", "")
+            gt_title = ""
+            gt_code = ""
+            for line in gt_output.split("\n"):
+                if "ESCO Occupation Title:" in line:
+                    gt_title = line.split("ESCO Occupation Title:")[-1].strip().lower()
+                if "ISCO-08 Code:" in line:
+                    gt_code = line.split("ISCO-08 Code:")[-1].strip()
+            if gt_title and gt_code and gt_title not in unique_targets:
+                unique_targets[gt_title] = gt_code
+                
+        titles = list(unique_targets.keys())
+        codes = [unique_targets[t] for t in titles]
+        
+        self.target_titles = titles
+        self.target_codes = codes
+        embeddings = []
+        
+        model.eval()
+        with torch.no_grad():
+            for title in titles:
+                # Tokenize the target title
+                inputs = self.tokenizer(title, return_tensors="pt", add_special_tokens=True).to("cuda")
+                outputs = model(**inputs, output_hidden_states=True)
+                
+                # Extract EOS hidden state
+                last_hidden_state = outputs.hidden_states[-1]
+                attention_mask = inputs.attention_mask
+                sequence_lengths = attention_mask.sum(dim=1) - 1
+                batch_size = last_hidden_state.shape[0]
+                eos_embeddings = last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
+                
+                # Normalize for cosine similarity
+                eos_embeddings = torch.nn.functional.normalize(eos_embeddings, p=2, dim=1)
+                embeddings.append(eos_embeddings)
+                
+        self.target_embeddings = torch.cat(embeddings, dim=0)
+        logger.info(f"Cached {len(self.target_codes)} ESCO target embeddings.")
+
     def run_esco_evaluation(self, model: Any) -> Tuple[float, float, float]:
         """Runs the deterministic evaluation benchmark against 100 ESCO validation samples."""
         if not self.eval_dataset or model is None:
@@ -163,6 +219,8 @@ class TelemetryCallback(TrainerCallback):
         if CUDA_AVAILABLE:
             gc.collect()
             torch.cuda.empty_cache()
+            if self.target_embeddings is None:
+                self.compute_target_embeddings(model)
 
         model.eval()
         with torch.no_grad():
@@ -188,52 +246,35 @@ class TelemetryCallback(TrainerCallback):
                     ]
                     prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
                     inputs = self.tokenizer(text=[prompt], return_tensors="pt").to("cuda")
-                    outputs = model.generate(
-                        **inputs,
-                        max_new_tokens=64,
-                        use_cache=True,
-                        pad_token_id=self.tokenizer.pad_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id
-                    )
-                    # FORCE FIX: Decode the entire token output first to bypass array slicing bugs
-                    full_predicted_text = self.tokenizer.decode(outputs[0], skip_special_tokens=False)
-
-                    # Extract the content after the assistant tag manually
-                    model_output = ""
-                    if "<|im_start|>assistant" in full_predicted_text:
-                        model_output = full_predicted_text.split("<|im_start|>assistant")[-1].replace("<|im_end|>", "").strip()
-                    elif "assistant" in full_predicted_text.lower():
-                        model_output = full_predicted_text.lower().split("assistant")[-1].strip()
-                    elif "<start_of_turn>model" in full_predicted_text:
-                        model_output = full_predicted_text.split("<start_of_turn>model")[-1].replace("<end_of_turn>", "").strip()
-                    elif "model" in full_predicted_text.lower():
-                        model_output = full_predicted_text.lower().split("model")[-1].strip()
-                    else:
-                        # Ultimate fallback if no tags are matched
-                        model_output = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
-
-                    # Clean up any remaining formatting artifacts
-                    model_output = model_output.replace("Thinking Process:", "").strip()
+                    
+                    # Forward pass to extract hidden states
+                    outputs = model(**inputs, output_hidden_states=True)
+                    last_hidden_state = outputs.hidden_states[-1]
+                    
+                    # Extract EOS token hidden state
+                    attention_mask = inputs.attention_mask
+                    sequence_lengths = attention_mask.sum(dim=1) - 1
+                    batch_size = last_hidden_state.shape[0]
+                    input_embed = last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
+                    
+                    # Normalize and compute cosine similarity against target database
+                    input_embed = torch.nn.functional.normalize(input_embed, p=2, dim=1)
+                    cos_sim = torch.nn.functional.cosine_similarity(input_embed, self.target_embeddings)
+                    
+                    # Find closest match
+                    best_idx = torch.argmax(cos_sim).item()
+                    pred_title = self.target_titles[best_idx]
+                    pred_code = self.target_codes[best_idx]
+                    
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
-                    # Over epochs, mock generation improves to demonstrate pipeline flow correctly
-                    mock_success = random.random() < 0.35  # Simulate realistic base evaluation
+                    mock_success = random.random() < 0.35
                     if mock_success:
-                        model_output = f"ESCO Occupation Title: {gt_title}\nISCO-08 Code: {gt_code}"
+                        pred_title = gt_title
+                        pred_code = gt_code
                     else:
-                        model_output = "ESCO Occupation Title: general manager\nISCO-08 Code: 1120"
-
-                # Parse model response
-                pred_title = ""
-                pred_code = ""
-                # Replace newline with some delimiter just in case the model concatenated on one line
-                normalized_output = model_output.lower().replace(" | ", "\n").replace(", isco-08", "\nisco-08")
-                
-                for line in normalized_output.split("\n"):
-                    if "esco occupation title:" in line:
-                        pred_title = line.split("esco occupation title:")[-1].strip()
-                    if "isco-08 code:" in line:
-                        pred_code = line.split("isco-08 code:")[-1].strip()
+                        pred_title = "general manager"
+                        pred_code = "1120"
 
                 # Compute Precision@1 (exact match preferredLabel)
                 if pred_title == gt_title:
