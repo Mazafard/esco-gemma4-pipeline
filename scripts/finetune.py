@@ -52,6 +52,7 @@ else:
 DATASET_PATH = os.path.join(BASE_DIR, "data", "esco_data.json")
 METRICS_PATH = os.path.join(BASE_DIR, "logs", "training_metrics.json")
 
+from transformers import TrainingArguments, TrainerState, TrainerControl
 
 class TelemetryCallback(TrainerCallback):
     """Custom Hugging Face Trainer callback to log training loss, peak VRAM, speed, and learning rate decay."""
