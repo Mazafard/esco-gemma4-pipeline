@@ -191,11 +191,10 @@ class TelemetryCallback(TrainerCallback):
                         **inputs,
                         max_new_tokens=64,
                         use_cache=True,
-                        pad_token_id=self.tokenizer.eos_token_id,
+                        pad_token_id=self.tokenizer.pad_token_id,
                         eos_token_id=self.tokenizer.eos_token_id
                     )
-                    generated_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)[0]
-                    model_output = generated_text[len(prompt):].replace("<end_of_turn>", "").replace(self.tokenizer.eos_token, "").strip()
+                    model_output = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
                     # Over epochs, mock generation improves to demonstrate pipeline flow correctly
