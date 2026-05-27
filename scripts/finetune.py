@@ -188,7 +188,7 @@ class TelemetryCallback(TrainerCallback):
         with torch.no_grad():
             for title in titles:
                 # Tokenize the target title
-                inputs = self.tokenizer(title, return_tensors="pt", add_special_tokens=True).to("cuda")
+                inputs = self.tokenizer(text=[title], return_tensors="pt", add_special_tokens=True).to("cuda")
                 outputs = model(**inputs, output_hidden_states=True)
                 
                 # Extract EOS hidden state
