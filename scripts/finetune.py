@@ -172,10 +172,10 @@ class TelemetryCallback(TrainerCallback):
 
                 # Generate answer using mock or actual model
                 if CUDA_AVAILABLE:
-                    prompt = (
-                        f"<start_of_turn>user\nInstruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\n"
-                        f"Input: {skills}<end_of_turn>\n<start_of_turn>model\n"
-                    )
+                    messages = [
+                        {"role": "user", "content": f"Instruction: Map the following professional skills and experience to the correct ESCO occupation title and ISCO-08 code.\nInput: {skills}"}
+                    ]
+                    prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
                     inputs = self.tokenizer(text=[prompt], return_tensors="pt").to("cuda")
                     outputs = model.generate(
                         **inputs,
@@ -185,7 +185,7 @@ class TelemetryCallback(TrainerCallback):
                         eos_token_id=self.tokenizer.eos_token_id
                     )
                     generated_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)[0]
-                    model_output = generated_text.split("<start_of_turn>model\n")[-1].replace("<end_of_turn>", "").strip()
+                    model_output = generated_text[len(prompt):].replace("<end_of_turn>", "").replace(self.tokenizer.eos_token, "").strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
                     # Over epochs, mock generation improves to demonstrate pipeline flow correctly
