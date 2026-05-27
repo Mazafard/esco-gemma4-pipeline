@@ -273,10 +273,13 @@ def load_esco_dataset() -> Tuple[Dataset, List[Dict[str, Any]]]:
     hf_dataset = Dataset.from_list(train_records)
     hf_dataset = hf_dataset.map(format_prompts, batched=True)
 
-    return hf_dataset, eval_records
+    hf_eval_dataset = Dataset.from_list(eval_records)
+    hf_eval_dataset = hf_eval_dataset.map(format_prompts, batched=True)
+
+    return hf_dataset, hf_eval_dataset, eval_records
 
 
-def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> None:
+def train_model(train_dataset: Dataset, eval_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> None:
     """Executes Parameter-Efficient Fine-Tuning using QLoRA config."""
     logger.info("Initializing Model & Tokenizer loading...")
 
@@ -370,6 +373,7 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
         model=model,
         processing_class=tokenizer,
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         args=training_args,
         callbacks=[telemetry_cb]
     )
@@ -389,8 +393,8 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
 
 def main():
     try:
-        train_dataset, eval_records = load_esco_dataset()
-        train_model(train_dataset, eval_records)
+        train_dataset, eval_dataset, eval_records = load_esco_dataset()
+        train_model(train_dataset, eval_dataset, eval_records)
     except Exception as e:
         logger.error(f"[-] Training pipeline failed with exception: {str(e)}", exc_info=True)
         raise e
