@@ -326,8 +326,8 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
     
     training_args = SFTConfig(
         output_dir="outputs",
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=32,
+        gradient_accumulation_steps=1,
         warmup_steps=2,
         max_steps=10,  # Small value to ensure fast execution dry-runs
         learning_rate=2e-4,
