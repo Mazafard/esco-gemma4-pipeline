@@ -114,20 +114,14 @@ class TelemetryCallback(TrainerCallback):
             "timestamp": time.time()
         }
 
-        # 4. Trigger Deterministic Evaluation Benchmarks every log/eval step
-        # To avoid training slowdown, we benchmark against 100 test samples
-        if step > 0 and step % 10 == 0:
-            logger.info(f"Triggering deterministic ESCO Precision/Recall benchmark at Step {step}...")
-            precision, recall, f1 = self.run_esco_evaluation(kwargs.get("model"))
-            step_metrics["precision_at_1"] = round(precision, 4)
-            step_metrics["recall_at_3"] = round(recall, 4)
-            step_metrics["f1_score"] = round(f1, 4)
-            logger.info(f"Step {step} Benchmark -> Precision@1: {precision:.2f}, Recall@3: {recall:.2f}, F1: {f1:.2f}")
-        else:
-            # Carry over last metrics or zero
-            step_metrics["precision_at_1"] = 0.0
-            step_metrics["recall_at_3"] = 0.0
-            step_metrics["f1_score"] = 0.0
+        # Carry over last metrics
+        last_p1 = self.metrics_history[-1].get("precision_at_1", 0.0) if self.metrics_history else 0.0
+        last_r3 = self.metrics_history[-1].get("recall_at_3", 0.0) if self.metrics_history else 0.0
+        last_f1 = self.metrics_history[-1].get("f1_score", 0.0) if self.metrics_history else 0.0
+        
+        step_metrics["precision_at_1"] = last_p1
+        step_metrics["recall_at_3"] = last_r3
+        step_metrics["f1_score"] = last_f1
 
         self.metrics_history.append(step_metrics)
 
@@ -137,6 +131,22 @@ class TelemetryCallback(TrainerCallback):
                 json.dump(self.metrics_history, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Failed to write telemetry: {str(e)}")
+
+    def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        epoch = round(state.epoch, 2) if state.epoch else 0.0
+        logger.info(f"Triggering deterministic ESCO Precision/Recall benchmark at Epoch {epoch}...")
+        precision, recall, f1 = self.run_esco_evaluation(kwargs.get("model"))
+        
+        if self.metrics_history:
+            self.metrics_history[-1]["precision_at_1"] = round(precision, 4)
+            self.metrics_history[-1]["recall_at_3"] = round(recall, 4)
+            self.metrics_history[-1]["f1_score"] = round(f1, 4)
+            logger.info(f"Epoch {epoch} Benchmark -> Precision@1: {precision:.2f}, Recall@3: {recall:.2f}, F1: {f1:.2f}")
+            try:
+                with open(self.output_json_path, "w", encoding="utf-8") as f:
+                    json.dump(self.metrics_history, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.error(f"Failed to write telemetry: {str(e)}")
 
     def run_esco_evaluation(self, model: Any) -> Tuple[float, float, float]:
         """Runs the deterministic evaluation benchmark against 100 ESCO validation samples."""
@@ -328,12 +338,13 @@ def train_model(train_dataset: Dataset, eval_records: List[Dict[str, Any]]) -> N
         output_dir="outputs",
         per_device_train_batch_size=32,
         gradient_accumulation_steps=1,
-        warmup_steps=2,
-        max_steps=10,  # Small value to ensure fast execution dry-runs
+        num_train_epochs=3,
+        eval_strategy="epoch",
+        save_strategy="epoch",
         learning_rate=2e-4,
         optim="adamw_8bit" if CUDA_AVAILABLE else "adamw_torch",
         weight_decay=0.01,
-        logging_steps=1,
+        logging_steps=10,
         fp16=not has_bf16 if CUDA_AVAILABLE else False,
         bf16=has_bf16 if CUDA_AVAILABLE else False,
         seed=3407,
