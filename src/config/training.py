@@ -22,6 +22,6 @@ def get_training_args() -> SFTConfig:
         remove_unused_columns=False,
         dataset_text_field="text",
         max_length=2048,
-        dataset_num_proc=1,
+        dataset_num_proc=None,
         packing=False,
     )
