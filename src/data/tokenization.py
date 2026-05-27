@@ -37,7 +37,7 @@ def prepare_datasets(tokenizer=None) -> Tuple[Dataset, Dataset, List[Dict[str, A
             texts.append(text)
         
         if tokenizer is not None:
-            return tokenizer(texts, truncation=True, max_length=2048)
+            return tokenizer(text=texts, truncation=True, max_length=2048)
             
         return {"text": texts}
 
