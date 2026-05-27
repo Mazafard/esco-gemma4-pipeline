@@ -195,9 +195,20 @@ class TelemetryCallback(TrainerCallback):
                         pad_token_id=self.tokenizer.pad_token_id,
                         eos_token_id=self.tokenizer.eos_token_id
                     )
-                    input_len = inputs.input_ids.shape[1]
-                    print(f"DEBUG - Raw Generated Token IDs: {outputs[0].tolist()}")
-                    model_output = self.tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
+                    generated_tokens = outputs[0]
+                    input_token_len = inputs.input_ids.shape[1]
+                    
+                    # Decode only the newly generated slice safely
+                    response_tokens = generated_tokens[input_token_len:]
+                    model_output = self.tokenizer.decode(response_tokens, skip_special_tokens=True).strip()
+
+                    # Fallback in case of template token overhead shifting indexes
+                    if not model_output:
+                        full_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+                        if "assistant" in full_text.lower():
+                            model_output = full_text.lower().split("assistant")[-1].strip()
+                        elif "model" in full_text.lower():
+                            model_output = full_text.lower().split("model")[-1].strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
                     # Over epochs, mock generation improves to demonstrate pipeline flow correctly
