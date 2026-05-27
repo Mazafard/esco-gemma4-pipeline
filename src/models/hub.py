@@ -52,6 +52,19 @@ tags:
 - classification
 - esco
 - occupations
+widget:
+- text: |
+    <start_of_turn>user
+    Instruction: Map the following job title and description to the most appropriate ESCO occupation.
+    Input: Senior Python Developer with 5 years of experience building APIs.<end_of_turn>
+    <start_of_turn>model
+  example_title: "Python Developer"
+- text: |
+    <start_of_turn>user
+    Instruction: Map the following job title and description to the most appropriate ESCO occupation.
+    Input: Forklift operator in a warehouse environment.<end_of_turn>
+    <start_of_turn>model
+  example_title: "Forklift Operator"
 ---
 
 # {repo_id.split('/')[-1] if '/' in repo_id else repo_id}
