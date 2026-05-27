@@ -195,7 +195,9 @@ class TelemetryCallback(TrainerCallback):
                         pad_token_id=self.tokenizer.pad_token_id,
                         eos_token_id=self.tokenizer.eos_token_id
                     )
-                    model_output = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
+                    input_len = inputs.input_ids.shape[1]
+                    print(f"DEBUG - Raw Generated Token IDs: {outputs[0].tolist()}")
+                    model_output = self.tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
                 else:
                     # CPU mock generation mimicking positive accuracy training progression
                     # Over epochs, mock generation improves to demonstrate pipeline flow correctly
