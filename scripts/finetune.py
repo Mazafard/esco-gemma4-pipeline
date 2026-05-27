@@ -221,11 +221,14 @@ class TelemetryCallback(TrainerCallback):
                 # Parse model response
                 pred_title = ""
                 pred_code = ""
-                for line in model_output.split("\n"):
-                    if "ESCO Occupation Title:" in line:
-                        pred_title = line.split("ESCO Occupation Title:")[-1].strip().lower()
-                    if "ISCO-08 Code:" in line:
-                        pred_code = line.split("ISCO-08 Code:")[-1].strip()
+                # Replace newline with some delimiter just in case the model concatenated on one line
+                normalized_output = model_output.lower().replace(" | ", "\n").replace(", isco-08", "\nisco-08")
+                
+                for line in normalized_output.split("\n"):
+                    if "esco occupation title:" in line:
+                        pred_title = line.split("esco occupation title:")[-1].strip()
+                    if "isco-08 code:" in line:
+                        pred_code = line.split("isco-08 code:")[-1].strip()
 
                 # Compute Precision@1 (exact match preferredLabel)
                 if pred_title == gt_title:
