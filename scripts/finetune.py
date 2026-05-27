@@ -10,6 +10,7 @@ Refactored to use modular src/ components.
 import os
 import sys
 import logging
+import unsloth  # Must be imported before trl, transformers, peft
 from trl import SFTTrainer
 
 # Add the project root to sys.path to enable src.* imports
@@ -62,7 +63,8 @@ def main():
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             args=training_args,
-            callbacks=[telemetry_cb]
+            callbacks=[telemetry_cb],
+            dataset_kwargs={"skip_prepare_dataset": True}
         )
 
         logger.info("Starting fine-tuning sequence...")

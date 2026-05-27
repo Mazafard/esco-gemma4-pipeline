@@ -31,7 +31,14 @@ def prepare_datasets(tokenizer=None) -> Tuple[Dataset, Dataset, List[Dict[str, A
                 f"<start_of_turn>user\nInstruction: {inst}\nInput: {inp}<end_of_turn>\n"
                 f"<start_of_turn>model\n{out}<end_of_turn>"
             )
+            # Add EOS token if tokenizer is provided so the model knows when to stop
+            if tokenizer is not None and getattr(tokenizer, "eos_token", None):
+                text += tokenizer.eos_token
             texts.append(text)
+        
+        if tokenizer is not None:
+            return tokenizer(texts, truncation=True, max_length=2048)
+            
         return {"text": texts}
 
     hf_dataset = Dataset.from_list(train_records)

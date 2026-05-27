@@ -20,8 +20,5 @@ def get_training_args() -> SFTConfig:
         bf16=has_bf16 if cuda_av else False,
         seed=3407,
         remove_unused_columns=False,
-        dataset_text_field="text",
-        max_length=2048,
-        dataset_num_proc=None,
         packing=False,
     )
